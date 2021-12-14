@@ -1,0 +1,44 @@
+version: "3"
+
+volumes:
+  database:
+
+x-services:
+  &web-service
+  build:
+    context: ./web
+  env_file:
+    - ./web/.env.dev
+  volumes:
+    - ./web:/app
+
+services:
+  web:
+    << : *web-service
+    restart: unless-stopped
+    command: python manage.py runserver 0.0.0.0:8000
+    ports:
+      - "8000:8000"
+  worker:
+    << : *web-service
+    restart: unless-stopped
+    command: dramatiq question_app.actors
+  bot:
+    restart: unless-stopped
+    build:
+      context: ./bot
+    command: python main.py
+    volumes:
+      - ./bot:/app
+    env_file:
+      - ./bot/.env.dev
+  database:
+    restart: unless-stopped
+    image: postgres:13.4-alpine
+    volumes:
+      - database:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_PASSWORD=password
+  redis:
+    restart: unless-stopped
+    image: redis:6.2.6-alpine
